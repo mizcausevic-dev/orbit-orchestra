@@ -40,7 +40,13 @@ export function GameScreen({
   onOpenSettings,
 }: Props) {
   const isSandbox = stage.difficulty === "sandbox";
-  const autoSound = isSandbox || practice;
+  // Planets always play their instrument on every beat-line crossing. That
+  // IS the music of the orbit orchestra: the polyrhythm emerges from the
+  // orbital periods. The player conducts by hitting at the crossing, which
+  // scores and adds a short confirmation click. Mute and visual-only modes
+  // suppress all scheduling inside the AudioEngine. (Previously challenge
+  // mode was silent until a correct hit, which made the game feel broken.)
+  const autoSound = true;
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -101,16 +107,15 @@ export function GameScreen({
       pushPopup(hit.judgement);
       if (hit.judgement !== "miss") {
         pushFlash(hit.planetId, hit.judgement as HitFlash["judgement"]);
-        // In challenge (non-autoSound) modes, the hit triggers the sound.
-        if (!autoSound) {
-          const planet = stageRef.current.planets.find((p) => p.id === hit.planetId);
-          if (planet) audio.playInstrument(planet.instrument, audio.currentTime);
-        }
+        // The planet's note already auto-played at the crossing. Add a short
+        // confirmation click so the player feels the hit without doubling
+        // the melody. No-op when muted or in visual-only mode.
+        audio.playClick();
       } else {
         pushFlash(hit.planetId, "miss");
       }
     },
-    [autoSound, audio, pushFlash, pushPopup],
+    [audio, pushFlash, pushPopup],
   );
 
   const handleAutoMiss = useCallback(
@@ -155,11 +160,18 @@ export function GameScreen({
 
   useEffect(() => {
     buildEngine();
+    // Defensively unlock audio when gameplay starts. The App also unlocks on
+    // the first global gesture, but this guarantees the AudioContext is
+    // running before the first note is scheduled even if navigation happened
+    // via a path that did not fire the window-level gesture listener.
+    void audio.unlock().catch(() => {
+      /* visual-only mode still works without audio */
+    });
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };
-  }, [buildEngine]);
+  }, [buildEngine, audio]);
 
   // Main loop.
   const frame = useCallback(() => {
