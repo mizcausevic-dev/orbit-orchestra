@@ -30,3 +30,6 @@ coverage
 
 # Vite
 .vite
+
+# TypeScript incremental build info
+*.tsbuildinfo
