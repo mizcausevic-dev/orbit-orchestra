@@ -33,3 +33,7 @@ coverage
 
 # TypeScript incremental build info
 *.tsbuildinfo
+
+# Preview / dev logs
+preview-*.txt
+*-debug.log
