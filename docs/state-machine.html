@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Orbit Orchestra — State Machine & Timing</title>
+<style>
+  :root {
+    --ink: #07060a; --panel: #1a1626; --border: #3a2f52;
+    --text: #f4f1ea; --dim: #b8aecb; --cyan: #66fcf1; --acid: #d6ff3f;
+    --pink: #ff7eb6; --grape: #8b5cff; --cash: #2fd57a; --warn: #ffb454;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: radial-gradient(900px 600px at 50% -10%, rgba(139,92,255,.12), transparent 60%), var(--ink);
+    color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: clamp(16px, 4vw, 48px); line-height: 1.5;
+  }
+  h1 { font-size: clamp(1.4rem, 4vw, 2rem); margin: 0 0 4px;
+    background: linear-gradient(90deg, var(--cyan), var(--grape), var(--pink));
+    -webkit-background-clip: text; background-clip: text; color: transparent; }
+  p.lead { color: var(--dim); margin: 0 0 24px; max-width: 70ch; }
+  section { margin-bottom: 32px; }
+  h2 { font-size: 1.1rem; margin: 0 0 12px; color: var(--cyan); letter-spacing: .02em; }
+  svg { width: 100%; height: auto; max-width: 880px; display: block; }
+  .node rect { fill: var(--panel); stroke: var(--border); stroke-width: 1.5; }
+  .node.playing rect { stroke: var(--acid); }
+  .node.paused rect { stroke: var(--warn); }
+  .node text { fill: var(--text); font-size: 13px; font-weight: 600; text-anchor: middle; }
+  .node text.sub { fill: var(--dim); font-size: 10px; font-weight: 400; }
+  .edge { stroke: var(--border); stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+  .edge.bidir { stroke-dasharray: 4 3; }
+  .edge-label { fill: var(--dim); font-size: 10px; text-anchor: middle; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; color: var(--dim); font-size: .85rem; margin-top: 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+  .pipeline { display: grid; gap: 10px; max-width: 880px; }
+  .step { display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: start;
+    padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+  .step .n { color: var(--cyan); font-weight: 800; }
+  .step code { background: rgba(255,255,255,.06); padding: 1px 5px; border-radius: 4px; font-size: .85em; }
+  .step .why { color: var(--dim); font-size: .85rem; margin-top: 4px; }
+  .note { color: var(--dim); font-size: .85rem; border-left: 2px solid var(--grape); padding-left: 12px; margin-top: 16px; max-width: 70ch; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+</head>
+<body>
+<h1>Orbit Orchestra</h1>
+<p class="lead">Phase state machine and timing pipeline. Single-file, dependency-free reference diagram for the shipped vertical slice.</p>
+
+<section>
+  <h2>Game phase state machine</h2>
+  <svg viewBox="0 0 880 360" role="img" aria-label="Game phase state machine">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#3a2f52" />
+      </marker>
+    </defs>
+    <!-- title -->
+    <g class="node" transform="translate(120,40)">
+      <rect x="-70" y="0" width="140" height="48" rx="8" />
+      <text x="0" y="22">title</text>
+      <text x="0" y="38" class="sub">stage select</text>
+    </g>
+    <!-- instructions -->
+    <g class="node" transform="translate(330,40)">
+      <rect x="-70" y="0" width="140" height="48" rx="8" />
+      <text x="0" y="22">instructions</text>
+      <text x="0" y="38" class="sub">how to play</text>
+    </g>
+    <!-- tutorial -->
+    <g class="node" transform="translate(540,40)">
+      <rect x="-70" y="0" width="140" height="48" rx="8" />
+      <text x="0" y="22">tutorial</text>
+      <text x="0" y="38" class="sub">practice stage 1</text>
+    </g>
+    <!-- playing -->
+    <g class="node playing" transform="translate(330,170)">
+      <rect x="-80" y="0" width="160" height="52" rx="8" />
+      <text x="0" y="24">playing</text>
+      <text x="0" y="40" class="sub">engine + rAF + audio</text>
+    </g>
+    <!-- paused -->
+    <g class="node paused" transform="translate(620,170)">
+      <rect x="-70" y="0" width="140" height="52" rx="8" />
+      <text x="0" y="24">paused</text>
+      <text x="0" y="40" class="sub">clock frozen</text>
+    </g>
+    <!-- result -->
+    <g class="node" transform="translate(330,300)">
+      <rect x="-70" y="0" width="140" height="48" rx="8" />
+      <text x="0" y="22">result</text>
+      <text x="0" y="38" class="sub">grade + breakdown</text>
+    </g>
+
+    <!-- edges -->
+    <path class="edge" d="M190,64 L260,64" />
+    <text class="edge-label" x="225" y="58">how to play</text>
+    <path class="edge" d="M260,64 L190,64" />
+    <text class="edge-label" x="225" y="78">back</text>
+
+    <path class="edge" d="M190,64 Q 330,64 330,90 L330,170" />
+    <text class="edge-label" x="250" y="120">select stage</text>
+    <path class="edge" d="M470,64 Q 540,90 470,120 L 380,170" />
+    <text class="edge-label" x="500" y="120">start playing</text>
+
+    <path class="edge bidir" d="M410,196 L550,196" />
+    <text class="edge-label" x="480" y="188">Esc / P</text>
+    <text class="edge-label" x="480" y="212">resume</text>
+
+    <path class="edge" d="M330,222 L330,300" />
+    <text class="edge-label" x="345" y="262">finish</text>
+    <path class="edge" d="M260,324 L190,90" />
+    <text class="edge-label" x="200" y="220">title</text>
+    <path class="edge" d="M400,324 L470,90" />
+    <text class="edge-label" x="470" y="220">retry / next</text>
+    <path class="edge" d="M690,170 Q 760,90 200,64" />
+    <text class="edge-label" x="720" y="120">quit</text>
+  </svg>
+  <div class="legend">
+    <span><span class="swatch" style="background:var(--acid)"></span> playing (active)</span>
+    <span><span class="swatch" style="background:var(--warn)"></span> paused (timing frozen)</span>
+    <span><span class="swatch" style="background:var(--panel);border:1px solid var(--border)"></span> screen state</span>
+    <span><span class="swatch" style="background:transparent;border:1px dashed var(--border)"></span> bidirectional (Esc/P)</span>
+  </div>
+</section>
+
+<section>
+  <h2>Timing pipeline (per frame)</h2>
+  <div class="pipeline">
+    <div class="step"><span class="n">1</span><div>
+      <strong>Sample <code>AudioContext.currentTime</code></strong> via <code>GameClock.now()</code>.
+      <div class="why">The only monotonic clock trusted for judging. Zero-based, pause-aware. Never <code>performance.now()</code> for judging, never CSS animation progress.</div>
+    </div></div>
+    <div class="step"><span class="n">2</span><div>
+      <strong><code>GameEngine.update(now)</code></strong> resolves auto-miss and fires <code>onEventActive</code>.
+      <div class="why">Pure state machine. Events are precomputed from orbital periods, so the loop only matches, never simulates physics.</div>
+    </div></div>
+    <div class="step"><span class="n">3</span><div>
+      <strong>On input</strong>: capture <code>audio.currentTime</code>, convert to game time, subtract user latency offset, compare to nearest event.
+      <div class="why">Latency offset is a single user-adjustable value; calibration measures the combined round-trip offset against a metronome.</div>
+    </div></div>
+    <div class="step"><span class="n">4</span><div>
+      <strong>Schedule audio</strong> at absolute <code>AudioContext.currentTime</code> with a small lookahead.
+      <div class="why">Sample-accurate, frame-rate independent. Skipped entirely in mute or visual-only mode.</div>
+    </div></div>
+    <div class="step"><span class="n">5</span><div>
+      <strong>Draw</strong> the solar system to Canvas from refs (no React re-render per frame).
+      <div class="why">HUD updates through React state but throttled to ~12 fps to avoid re-render churn.</div>
+    </div></div>
+  </div>
+  <p class="note">
+    Determinism: <code>generateEvents(stage)</code> solves the orbital-crossing equation in closed form, so the same stage config always yields the same event list. The PRNG (<code>mulberry32</code>) is seeded for any randomized fixtures. The test suite asserts seed reproducibility and a full end-to-end happy path against a synthetic clock.
+  </p>
+</section>
+</body>
+</html>
